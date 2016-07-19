@@ -7,7 +7,8 @@ with 10 pin port. Will likely work with other ports with some changes. Uses
 TI tm4c123 microcontroller.
 
 ## Pins
-Nikon pin | TI pin
-9         | C4
-4         | C5
-6 (gnd)   | gnd
+| Nikon pin | TI pin |
+| --------- | ------ |
+| 9         | C4     |
+| 4         | C5     |
+| 6 (gnd)   | gnd    |
