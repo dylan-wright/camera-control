@@ -17,4 +17,4 @@ equivalent).
 
 Here is a pinmap for a camera you probably don't have.
 
-![pin map](https://github.com/dylan-wright/camera_control/raw/master/nikon_10pins.gif "Pin map for Nikon D100")
+![pin map](https://github.com/dylan-wright/camera-control/raw/master/nikon_10pins.gif "Pin map for Nikon D100")
