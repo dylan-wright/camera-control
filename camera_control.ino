@@ -1,121 +1,145 @@
-
-/*  Dylan Wright - dylan.wright@uky.edu
- *    Nikon D100 Controller
- *    Interface to 10 pin port:
- *      http://www.petermillerphoto.com/nikongps/diagrams/nikon_10pins.gif
- *      e1  - shutter
- *      e2  - focus
- *      gnd - gnd
- *    Push button 1 captures an image
- *    indicated by red led.
+/**
+ * camera controller
+ * Dylan Wright
+ * dylan@dcwright.xyz
+ *
+ * version 2
+ * rewritten to 
+ *  correct flipped led logic
+ *  add bulb feature
+ *    press SW2 to start exposure 
+ *    press SW2 again to stop
  */
- 
-#include <Sseg.h>
 
-const int sseg_e = 27;
-const int sseg_d = 28;
-const int sseg_c = 29;
-const int sseg_b = 5;
-const int sseg_a = 6;
-const int sseg_f = 23;
-const int sseg_g = 24;
-const int sseg_dp = 25;
-const int sseg_0 = 26;
-Sseg sseg(sseg_a, sseg_b, sseg_c, sseg_d, sseg_e, sseg_f, sseg_g, sseg_dp, sseg_0);
+const int pc4 = 37;
+const int pc5 = 36;
+const int pf4 = 31;
+const int pf0 = 17;
+const int pf1 = 30;
+const int pf2 = 40;
+const int pf3 = 39;
 
-const int e1 = 27;
-const int focus = 37;
+const int focus = pc4;
+const int shutter = pc5;
+const int button0 = pf4;
+const int button1 = pf0;
+const int led_red = pf1;
+const int led_blue = pf2;
+const int led_green = pf3;
 
-const int e2 = 28;
-const int shutter = 36;
+const int msdelay = 2000;
 
-const int f4 = 31;
-const int button = f4;
+// because my onboard leds are literally blinding
+const int led_brightness = 32;
 
-const int f0 = 17;
-const int button2 = f0;
-
-const int f1 = 30;
-const int led = f1;
-
-const int ir_in = 35;
+int last_b0 = 1;
+int last_b1 = 1;
 
 void setup()
 {
   // put your setup code here, to run once:
   pinMode(shutter, OUTPUT);
   pinMode(focus, OUTPUT);
-  pinMode(button, INPUT_PULLUP);
-  pinMode(led, OUTPUT);
-  pinMode(button2, INPUT_PULLUP);
-  
+  pinMode(led_red, OUTPUT);
+  pinMode(led_blue, OUTPUT);
+  pinMode(led_green, OUTPUT);
+  pinMode(button0, INPUT_PULLUP);
+  pinMode(button1, INPUT_PULLUP);
+ 
   digitalWrite(shutter, HIGH);
   digitalWrite(focus, HIGH);
-  digitalWrite(led, LOW);
-  
-  pinMode(ir_in, INPUT);
-  attachInterrupt(ir_in, capture_ir, FALLING);
+  analogWrite(led_red, LOW);
+  analogWrite(led_blue, LOW);
 }
 
-void capture_ir() 
-{
-  digitalWrite(led, HIGH);
-  capture(1, 2000);
-  delay(2);  
-  digitalWrite(led, LOW);
-}
-
-/*  Take pics pictures with 
- *    a time interval of ms
- *    milliseconds
- */
 void capture(int pics, int ms)
 {
   const int focus_time = ms/2;
   const int exposure_time = ms/4;
-  
   int i;
   int start_time;
-  for (i = 0; i < pics; i++) {
+  
+  for(i = 0; i < pics; i++) {
     start_time = millis();
-    sseg.setChar((pics-i)%10+48);
     
-    // focus
-    digitalWrite(led, LOW);
+    //focus
+    analogWrite(led_red, led_brightness);
     digitalWrite(focus, LOW);
     delay(focus_time);
-    
-    digitalWrite(led, HIGH);
-    // expose
+  
+    analogWrite(led_red, LOW);
+  
+    // blue led on indicates photo is being taken
+    analogWrite(led_blue, led_brightness);
     digitalWrite(shutter, LOW);
+  
     delay(exposure_time);
+  
     digitalWrite(shutter, HIGH);
     digitalWrite(focus, HIGH);
+    analogWrite(led_blue, LOW);
     
-    // wait
+    analogWrite(led_green, led_brightness);
+  
     delay(ms - (millis() - start_time));
+    
+    analogWrite(led_green, LOW);
   }
 }
 
-int last_b2 = 1;
-int last_b1 = 1;
-int msdelay = 2000;
+void bulb() {
+  const int focus_time = msdelay/2;
+  
+  // focus
+  analogWrite(led_red, led_brightness);
+  digitalWrite(focus, LOW);
+  
+  delay(focus_time);
+  
+  analogWrite(led_red, LOW);
+ 
+  //expose
+  analogWrite(led_blue, led_brightness);
+  digitalWrite(shutter, LOW);
+  
+  // b1 is button to watch
+  // debounce
+  int button1stat;
+  while (true) {
+    button1stat = digitalRead(button1);
+    
+    // change
+    if (button1stat != last_b1 && last_b1) {
+      break;
+    }
+    
+    last_b1 = button1stat;
+    
+    delay(100);
+  }
+  
+  analogWrite(led_blue, LOW);
+  digitalWrite(shutter, HIGH);
+  digitalWrite(focus, HIGH);
+}
+
 void loop()
 {
   // put your main code here, to run repeatedly:
-  // debounce button
-  int button1stat = digitalRead(button);
-  int button2stat = digitalRead(button2);
-  if((button1stat!=last_b1 || button2stat != last_b2) && (!last_b1 || !last_b2)) {
-    digitalWrite(led, HIGH);
-    if (button1stat!=last_b1 && !last_b1) {
+  // debounce
+  int button0stat = digitalRead(button0);
+  int button1stat = digitalRead(button1);
+  
+  if ((button0stat != last_b0 || button1stat != last_b1) && (!last_b0 || !last_b1)) {
+    if (button0stat != last_b0 && !last_b0) {
       capture(20000, msdelay);
-    } else {
-      capture(1, 1000);
+    } else if (button1stat != last_b1 && !last_b1) {
+      bulb();
     }
-    digitalWrite(led, LOW);
   }
+  
+  last_b0 = button0stat;
   last_b1 = button1stat;
-  last_b2 = button2stat;
+  
   delay(100);
 }
