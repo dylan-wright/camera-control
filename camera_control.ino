@@ -52,8 +52,53 @@ void setup()
   analogWrite(led_blue, LOW);
 }
 
+/* Get the time to take between exposures
+ * 0 press -> msdelay
+ * 1 presses -> msdelay * 2
+ * 2 presses -> medelay * 3
+ */
+int getMs()
+{
+  // Button status variables
+  int button0stat;
+  int button1stat;
+
+  // Number of presses
+  int count = 0;
+
+  analogWrite(led_red, led_brightness / 3);
+
+  // debounce
+  while (true) {
+    button0stat = digitalRead(button0);
+    button1stat = digitalRead(button1);
+
+    // change
+    if (button0stat != last_b0 && last_b0) {
+      count += 1;
+      analogWrite(led_red, led_brightness / (3 - count % 3));
+    }
+    
+    if (button1stat != last_b1 && last_b1) {
+      break;
+    }
+    
+    last_b0 = button0stat;
+    
+    delay(100);
+  }
+
+  return msdelay * (count % 3 + 1);
+}
+
 void capture(int pics, int ms)
 {
+  ms = getMs();
+
+  analogWrite(led_red, led_brightness);
+  delay(ms);
+  analogWrite(led_red, LOW);
+
   const int focus_time = ms/2;
   const int exposure_time = ms/4;
   int i;
